@@ -20,12 +20,7 @@ import logging
 
 from model import ClassificationModel
 
-
-logger = logging.getLogger('[System]')
-logger_path = "./train.log"
-file_handler = logging.FileHandler(logger_path)
-logger.addHandler(file_handler)
-logger.setLevel(logging.DEBUG)
+LOG_PATH = './logs'
 
 def main(cli_args):
     # read from config file and make args
@@ -36,11 +31,18 @@ def main(cli_args):
     with open(os.path.join('configs', cli_args.config_file), 'w') as f:
         json.dump(args, f, indent='\t')
 
+    ### Set Loggers ###
+    logger = logging.getLogger('[System]')
+    logger_path = os.path.join(LOG_PATH, f'{args.model_type}.logs')
+    file_handler = logging.FileHandler(logger_path)
+    logger.addHandler(file_handler)
+    logger.setLevel(logging.DEBUG)
+    
     logger.info(f"  >> Current path: {os.getcwd()}")
     logger.info("Training/evaluation parameters {}".format(args))
 
 
-    model = ClassificationModel(args, pretrained_model).to(device)
+    model = DeletionBasedSummaryModel(args, pretrained_model).to(device)
 
 
     if args.do_train:
@@ -76,10 +78,9 @@ def main(cli_args):
     
 
 if __name__ == '__main__':
-
     cli_parser = argparse.ArgumentParser()
     cli_parser.add_argument("--config_file", type=str, default='configs/koelectra_small.json')
-    cli_parser.add_argument("--output_dir", type=str, default='krbert-ckpt')
+    cli_parser.add_argument("--output_dir", type=str, default='koelectra_small_ckpt')
     cli_args = cli_parser.parse_args()
 
     main(cli_args)
