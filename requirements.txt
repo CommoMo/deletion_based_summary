@@ -1,0 +1,5 @@
+fastprogress
+attrdict
+transformers==4.10
+torch==1.10.0
+s
