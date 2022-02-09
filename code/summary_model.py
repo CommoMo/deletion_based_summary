@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
 
@@ -10,8 +9,9 @@ class DeletionBasedSummaryModel(nn.Module):
         
         self.hidden_size = self.model.config.hidden_size
         self.classification_layer = nn.Linear(self.hidden_size, 1)
+        self.sigmoid = nn.Sigmoid()
 
-        sigmoid = nn.Sigmoid()
-
-    def forward(inputs):
-        print(1)
+    def forward(self, input_ids, attention_mask=None, token_type_ids=None):
+        outputs = self.model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids).last_hidden_state
+        outputs = self.classification_layer(outputs)
+        return self.sigmoid(outputs)        

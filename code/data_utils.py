@@ -52,7 +52,7 @@ class DeletionBasedSummaryDataset(Dataset):
 
         content = ' '.join(sentences)
         label = [0] + sum(label_list, [])
-        label = torch.tensor(label[:512])
+        label = torch.tensor(label[:512], dtype=torch.float)
 
         return content, label
     

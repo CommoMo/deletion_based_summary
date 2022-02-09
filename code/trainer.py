@@ -4,6 +4,7 @@ from fastprogress.fastprogress import master_bar, progress_bar
 
 from data_utils import get_dataloader
 import torch
+from torch.nn import CrossEntropyLoss, BCELoss
 
 def train(args, model):
     ### Set Loggers ###
@@ -13,7 +14,6 @@ def train(args, model):
     
     train_dataloader = get_dataloader(args, tokenizer, data_type='train')
     valid_dataloader = get_dataloader(args, tokenizer, data_type='valid')
-
 
     best_acc = 0
     global_step = 1
@@ -44,6 +44,7 @@ def train(args, model):
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=int(t_total * args.warmup_proportion), num_training_steps=t_total
     )
+    criterion = BCELoss()
 
     steps_trained_in_current_epoch=0
     mb = master_bar(range(int(args.num_train_epochs)))
@@ -60,10 +61,11 @@ def train(args, model):
             
             inputs, labels = batch
             inputs, labels = inputs.to(device), labels.to(device)
-            input_ids, attention_mask, token_type_ids = inputs['']
+            input_ids, attention_mask, token_type_ids = inputs['input_ids'], inputs['attention_mask'], inputs['token_type_ids']
 
-            logits, loss = model()
-            # loss = CrossEntropyLoss(logits, labels)
+            outputs = model(input_ids, attention_mask, token_type_ids)
+            outputs = outputs.squeeze(-1)
+            loss = criterion(outputs, labels)
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
