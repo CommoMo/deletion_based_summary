@@ -1,3 +1,5 @@
+import os
+
 from utils import get_logger
 from transformers import AdamW, get_linear_schedule_with_warmup
 from fastprogress.fastprogress import master_bar, progress_bar
@@ -5,6 +7,8 @@ from fastprogress.fastprogress import master_bar, progress_bar
 from data_utils import get_dataloader
 import torch
 from torch.nn import CrossEntropyLoss, BCELoss
+from sklearn.metrics import accuracy_score
+
 
 def train(args, model):
     ### Set Loggers ###
@@ -13,7 +17,6 @@ def train(args, model):
     tokenizer = model.tokenizer
     
     train_dataloader = get_dataloader(args, tokenizer, data_type='train')
-    valid_dataloader = get_dataloader(args, tokenizer, data_type='valid')
 
     best_acc = 0
     global_step = 1
@@ -53,7 +56,7 @@ def train(args, model):
         epoch_iterator = progress_bar(train_dataloader, parent=mb)
         train_loss = 0
         model.train()
-        for step, batch in enumerate(epoch_iterator):
+        for step, batch in enumerate(epoch_iterator, 1):
             # Skip past any already trained steps if resuming training
             if steps_trained_in_current_epoch > 0:
                 steps_trained_in_current_epoch -= 1
@@ -83,16 +86,10 @@ def train(args, model):
                 if args.logging_steps > 0 and global_step % args.logging_steps == 0:
                     # Only evaluate when single GPU otherwise metrics may not average well
                     if args.evaluate_during_training:
-                        eval_loss, eval_acc = evaluate(args, model, tokenizer, eval_dataloader, global_step=global_step)
+                        eval_loss, eval_acc = evaluate(args, model, criterion)
                         progress = global_step/t_total
                         
-                        curr_time = datetime.datetime.now()
-                        progress_time = curr_time - start_time
-                        hours, remainder = divmod(progress_time.seconds, 3600)
-                        minutes, seconds = divmod(remainder, 60)
-                        progress_time = f'{hours}H {minutes}Min'
-
-                        train_logger.info(f"epoch: {epoch}, step: {global_step}, eval_loss: {eval_loss.item():.4f}, acc: {eval_acc:.4f}, progress: {progress:.2f}, start_time: {start_time_}, progress_time: {progress_time}")
+                        logger.info(f"epoch: {epoch}, step: {global_step}, eval_loss: {eval_loss.item():.4f}, acc: {eval_acc:.4f}, progress: {progress:.2f}")
 
              # Save model checkpoint
                 if args.save_steps > 0 and global_step % args.save_steps == 0:
@@ -110,3 +107,34 @@ def train(args, model):
         mb.write("Epoch {} done".format(epoch+1))
 
     return global_step, train_loss/global_step
+
+def evaluate(args, model, criterion):
+    device = model.model.device.type
+    tokenizer = model.tokenizer
+    valid_dataloader = get_dataloader(args, tokenizer, data_type='valid')
+
+    epoch_iterator = progress_bar(valid_dataloader)
+    eval_loss = 0
+    total_acc = 0
+    model.eval()
+    with torch.no_grad():
+        for step, batch in enumerate(epoch_iterator, 1):
+            inputs, labels = batch
+            inputs, labels = inputs.to(device), labels.to(device)
+            input_ids, attention_mask, token_type_ids = inputs['input_ids'], inputs['attention_mask'], inputs['token_type_ids']
+
+            outputs = model(input_ids, attention_mask, token_type_ids)
+            outputs = outputs.squeeze(-1)
+
+            loss = criterion(outputs, labels)
+            eval_loss += loss.item()
+
+            preds = (outputs > 0.5)
+
+            flatten_preds = torch.flatten(preds).tolist()
+            flatten_labels = torch.flatten(labels).tolist()
+
+            acc_score = accuracy_score(flatten_preds, flatten_labels)
+            total_acc += acc_score
+
+    return eval_loss/step, total_acc/step
