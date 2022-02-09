@@ -2,9 +2,18 @@ from utils import get_logger
 from transformers import AdamW, get_linear_schedule_with_warmup
 from fastprogress.fastprogress import master_bar, progress_bar
 
-def train(args, train_dataloader, model, tokenizer, eval_dataloader):
+from data_utils import get_dataloader
+import torch
+
+def train(args, model):
     ### Set Loggers ###
     logger = get_logger(args)
+    device = model.model.device.type
+    tokenizer = model.tokenizer
+    
+    train_dataloader = get_dataloader(args, tokenizer, data_type='train')
+    valid_dataloader = get_dataloader(args, tokenizer, data_type='valid')
+
 
     best_acc = 0
     global_step = 1
@@ -49,14 +58,11 @@ def train(args, train_dataloader, model, tokenizer, eval_dataloader):
                 steps_trained_in_current_epoch -= 1
                 continue
             
-            input_ids, attention_mask, labels = batch
-            input_ids, attention_mask, labels = input_ids.to(device), attention_mask.to(device), labels.to(device)
-            inputs = {
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "labels": labels
-            }
-            logits, loss = model(inputs)
+            inputs, labels = batch
+            inputs, labels = inputs.to(device), labels.to(device)
+            input_ids, attention_mask, token_type_ids = inputs['']
+
+            logits, loss = model()
             # loss = CrossEntropyLoss(logits, labels)
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps

@@ -11,6 +11,7 @@ def get_logger(args):
     file_handler = logging.FileHandler(logger_path)
     logger.addHandler(file_handler)
     logger.setLevel(logging.DEBUG)
+    return logger
 
 
 def init_setting(cli_args):

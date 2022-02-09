@@ -1,13 +1,11 @@
 import argparse
 # from transformers.models.auto.configuration_auto import AutoConfig
 # from utils import init_logger, set_seed, init_system
-# from data_utils import IntentDataset, collate_fn
-
-
-# from torch.utils.data import DataLoader
 
 import torch
 from utils import *
+
+from trainer import train
 
 from summary_model import DeletionBasedSummaryModel
 
@@ -19,6 +17,8 @@ def main(cli_args):
     args = init_setting(cli_args)
     model = DeletionBasedSummaryModel(args).to(device)
 
+    if args.do_train:
+        train(args, model)
     print(" Debugging is done")
     # if args.do_train:
     #     ### Training configs ###
