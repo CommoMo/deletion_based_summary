@@ -1,5 +1,6 @@
 data
 models
-ckpt
+*ckpt
 notebook
 logs
+*__pycache__*
